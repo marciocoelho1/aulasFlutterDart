@@ -144,14 +144,17 @@ app_epi/
     models/
       epi.dart
       funcionario.dart
+      usuario.dart
     screens/
       epi_screen.dart
-      funcionarioScreen.dart
+      funcionario_screen.dart
+      login_screen.dart
       main_screen.dart
     services/
       api_config.dart
+      auth_service.dart
       epi_service.dart
-      funcionarioService.dart
+      funcionario_service.dart
     main.dart
   linux/
     flutter/
@@ -257,6 +260,7 @@ src/
             config/
               WebConfig.java
             controllers/
+              AuthController.java
               EpiController.java
               FuncionarioController.java
             entities/
@@ -296,6 +300,192 @@ pom.xml
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="app_epi/lib/models/usuario.dart">
+class Usuario {
+  final int id;
+  final String matricula;
+  final String nome;
+  final String setor;
+  final String perfil;
+  Usuario({
+    required this.id,
+    required this.matricula,
+    required this.nome,
+    required this.setor,
+    required this.perfil,
+  });
+  factory Usuario.fromJson(
+    Map<String, dynamic> json){
+      return Usuario(id: json['id'],
+      matricula: json['matricula'],
+      nome: json['nome'],
+      setor: json['setor'],
+      perfil: json['perfil'],
+      );
+    }
+}
+</file>
+
+<file path="app_epi/lib/screens/login_screen.dart">
+import 'package:flutter/material.dart';
+import '../models/usuario.dart';
+import '../services/auth_service.dart';
+import 'main_screen.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController matriculaController = TextEditingController();
+  final TextEditingController senhaController = TextEditingController();
+  bool carregando = false;
+
+  Future<void> fazerLogin() async {
+    try {
+      setState(() {
+        carregando = true;
+      });
+      Usuario usuario = await AuthService().login(
+        matriculaController.text,
+        senhaController.text,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainScreen(
+            usuario: usuario,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+        ),
+      );
+    } finally {
+      setState(() {
+        carregando = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            TextField(
+              controller: matriculaController,
+              decoration: const InputDecoration(
+                labelText: 'Matrícula',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: senhaController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Senha',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: carregando ? null : fazerLogin,
+                child: carregando
+                    ? const CircularProgressIndicator()
+                    : const Text('Entrar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+</file>
+
+<file path="app_epi/lib/services/auth_service.dart">
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/usuario.dart';
+import 'api_config.dart';
+
+class AuthService {
+  Future<Usuario> login(
+    String matricula,
+    String senha,
+  ) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/auth/login'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'matricula': matricula,
+        'senha': senha,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return Usuario.fromJson(
+        jsonDecode(response.body),
+      );
+    }
+
+    throw Exception(
+      'Matrícula ou senha inválidos',
+    );
+  }
+}
+</file>
+
+<file path="src/main/java/com/senac/api_epi/controllers/AuthController.java">
+package com.senac.api_epi.controllers;
+
+import com.senac.api_epi.entities.Funcionario;
+import com.senac.api_epi.repositories.FuncionarioRepository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+    private final FuncionarioRepository repository;
+    public AuthController(
+        FuncionarioRepository repository){
+            this.repository = repository;
+        }
+    @PostMapping ("/login")
+    public ResponseEntity<?> login(
+        @RequestBody Funcionario funcionarioLogin
+    ) {
+        Funcionario funcionario = repository.findByMatriculaAndSenha(funcionarioLogin.getMatricula(), funcionarioLogin.getSenha()).orElse(null);
+        if (funcionario == null){
+            return ResponseEntity.badRequest().body("Matrícula ou senha inválidos");
+        }
+        return ResponseEntity.ok(funcionario);
+    }
+}
+</file>
 
 <file path=".mvn/wrapper/maven-wrapper.properties">
 wrapperVersion=3.3.4
@@ -2054,7 +2244,7 @@ class EpiScreen extends StatelessWidget {
 }
 </file>
 
-<file path="app_epi/lib/screens/funcionarioScreen.dart">
+<file path="app_epi/lib/screens/funcionario_screen.dart">
 import 'package:flutter/material.dart';
 import '../models/funcionario.dart';
 import '../services/funcionario_service.dart';
@@ -2062,7 +2252,7 @@ import '../services/funcionario_service.dart';
 class FuncionarioScreen extends StatelessWidget {
   const FuncionarioScreen({super.key});
 
-  // Ícone diferente para cada setor
+  // Retorna um ícone específico de acordo com o setor
   IconData _obterIconeSetor(String setor) {
     switch (setor.trim().toLowerCase()) {
       case 'manutenção':
@@ -2148,11 +2338,18 @@ class FuncionarioScreen extends StatelessWidget {
 
 <file path="app_epi/lib/screens/main_screen.dart">
 import 'package:flutter/material.dart';
+
 import 'epi_screen.dart';
 import 'funcionario_screen.dart';
 
+import '../models/usuario.dart';
+import 'login_screen.dart';
+
 class MainScreen extends StatelessWidget {
-  const MainScreen({super.key});
+  final Usuario usuario;
+  const MainScreen({
+    super.key,
+    required this.usuario,});
 
   @override
   Widget build(BuildContext context) {
@@ -2166,13 +2363,26 @@ class MainScreen extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                'Menu Principal',
-                style: TextStyle(color: Colors.white, fontSize: 22),
+            UserAccountsDrawerHeader(
+              accountName: Text(usuario.nome),
+              accountEmail: Text(
+                usuario.perfil,
+              ),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  usuario.nome[0],
+                  style: const TextStyle(fontSize: 40.0),
+                ),
               ),
             ),
+            //const DrawerHeader(
+              //decoration: BoxDecoration(color: Colors.blue),
+              //child: Text(
+                //'Menu Principal',
+                //style: TextStyle(color: Colors.white, fontSize: 22),
+              //),
+            //),
             ListTile(
               leading: const Icon(Icons.home),
               title: const Text('Início'),
@@ -2200,16 +2410,28 @@ class MainScreen extends StatelessWidget {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sair'),
+              onTap: () {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+                );
+              },
+            )
           ],
         ),
       ),
       body: const Center(
         child: Text(
-          'Selecione uma opção no menu lateral',
-          style: TextStyle(fontSize: 18),
+          'Bem-vindo ${usuario.nome}',
+          style: const TextStyle(fontSize: 18),
         ),
-      ),
-    );
+        //child: Text(
+          //'Selecione uma opção no menu lateral',
+          //style: TextStyle(fontSize: 18),
+        ),
+      );
   }
 }
 </file>
@@ -2248,7 +2470,7 @@ class EpiService {
 }
 </file>
 
-<file path="app_epi/lib/services/funcionarioService.dart">
+<file path="app_epi/lib/services/funcionario_service.dart">
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/funcionario.dart';
@@ -2269,8 +2491,8 @@ class FuncionarioService {
 </file>
 
 <file path="app_epi/lib/main.dart">
+import 'package:app_epi/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-import 'screens/main_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -2284,7 +2506,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Controle de EPIs',
-      home: MainScreen(),
+      home: LoginScreen(),
     );
   }
 }
@@ -6212,6 +6434,9 @@ public class Funcionario {
     @Column(nullable = false, length = 80)
     private String setor;
 
+    @Column(nullable = false, length = 20)
+    private String perfil;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false, length = 60)
     private String senha;
@@ -6250,6 +6475,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> {
     Optional<Funcionario> findByMatricula(String matricula);
+    Optional<Funcionario> findByMatriculaAndSenha(String matricula, String senha);
 }
 </file>
 

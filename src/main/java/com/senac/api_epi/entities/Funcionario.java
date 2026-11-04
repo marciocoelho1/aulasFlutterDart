@@ -23,6 +23,9 @@ public class Funcionario {
     @Column(nullable = false, length = 80)
     private String setor;
 
+    @Column(nullable = false, length = 20)
+    private String perfil;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false, length = 60)
     private String senha;

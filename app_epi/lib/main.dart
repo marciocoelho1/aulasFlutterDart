@@ -1,5 +1,5 @@
+import 'package:app_epi/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-import 'screens/main_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Controle de EPIs',
-      home: MainScreen(),
+      home: LoginScreen(),
     );
   }
 }
