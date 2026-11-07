@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../models/epi.dart';
+import '../models/usuario.dart';
 import '../services/epi_service.dart';
 import '../services/api_config.dart';
+import 'epi_detalhe_screen.dart';
 
 class EpiScreen extends StatelessWidget {
-  const EpiScreen({super.key});
+  final Usuario usuario;
+
+  const EpiScreen({super.key, required this.usuario});
 
   @override
   Widget build(BuildContext context) {
@@ -27,23 +32,17 @@ class EpiScreen extends StatelessWidget {
         future: EpiService().buscarEpis(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Erro: ${snapshot.error}'),
-            );
+            return Center(child: Text('Erro: ${snapshot.error}'));
           }
 
           final epis = snapshot.data ?? [];
 
           if (epis.isEmpty) {
-            return const Center(
-              child: Text('Nenhum EPI cadastrado.'),
-            );
+            return const Center(child: Text('Nenhum EPI cadastrado.'));
           }
 
           return ListView.builder(
@@ -55,10 +54,7 @@ class EpiScreen extends StatelessWidget {
 
               return Card(
                 elevation: 3,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 // Destaca com fundo avermelhado e borda vermelha se o CA estiver vencido
                 color: vencido ? Colors.red.shade50 : Colors.white,
                 shape: RoundedRectangleBorder(
@@ -69,6 +65,15 @@ class EpiScreen extends StatelessWidget {
                   ),
                 ),
                 child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EpiDetalheScreen(epi: epi, usuario: usuario),
+                      ),
+                    );
+                  },
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
@@ -80,7 +85,9 @@ class EpiScreen extends StatelessWidget {
                         return Container(
                           width: 55,
                           height: 55,
-                          color: vencido ? Colors.red.shade100 : Colors.blue.shade50,
+                          color: vencido
+                              ? Colors.red.shade100
+                              : Colors.blue.shade50,
                           child: Icon(
                             Icons.health_and_safety,
                             color: vencido ? Colors.red : Colors.blue,

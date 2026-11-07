@@ -27,6 +27,22 @@ class Epi {
     }
   }
 
+  // Alias para compatibilidade com epi_detalhe_screen.dart
+  bool get caVencido => isCaVencido;
+
+  // Formata a data de AAAA-MM-DD para DD/MM/AAAA
+  String get validadeFormatada {
+    try {
+      final partes = validadeCa.split('-');
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+      return validadeCa;
+    } catch (_) {
+      return validadeCa;
+    }
+  }
+
   factory Epi.fromJson(Map<String, dynamic> json) {
     return Epi(
       id: json['id'],

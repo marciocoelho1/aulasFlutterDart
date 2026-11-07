@@ -146,6 +146,7 @@ app_epi/
       funcionario.dart
       usuario.dart
     screens/
+      epi_detalhe_screen.dart
       epi_screen.dart
       funcionario_screen.dart
       login_screen.dart
@@ -153,6 +154,7 @@ app_epi/
     services/
       api_config.dart
       auth_service.dart
+      emprestimo_service.dart
       epi_service.dart
       funcionario_service.dart
     main.dart
@@ -261,6 +263,7 @@ src/
               WebConfig.java
             controllers/
               AuthController.java
+              EmprestimoController.java
               EpiController.java
               FuncionarioController.java
             entities/
@@ -271,6 +274,8 @@ src/
               EmprestimoRepository.java
               EpiRepository.java
               FuncionarioRepository.java
+            service/
+              EmprestimoService.java
             ApiEpiApplication.java
     resources/
       static/
@@ -301,188 +306,404 @@ pom.xml
 <files>
 This section contains the contents of the repository's files.
 
-<file path="app_epi/lib/models/usuario.dart">
-class Usuario {
-  final int id;
-  final String matricula;
-  final String nome;
-  final String setor;
-  final String perfil;
-  Usuario({
-    required this.id,
-    required this.matricula,
-    required this.nome,
-    required this.setor,
-    required this.perfil,
-  });
-  factory Usuario.fromJson(
-    Map<String, dynamic> json){
-      return Usuario(id: json['id'],
-      matricula: json['matricula'],
-      nome: json['nome'],
-      setor: json['setor'],
-      perfil: json['perfil'],
-      );
-    }
-}
-</file>
-
-<file path="app_epi/lib/screens/login_screen.dart">
+<file path="app_epi/lib/screens/epi_detalhe_screen.dart">
 import 'package:flutter/material.dart';
+import '../models/epi.dart';
 import '../models/usuario.dart';
-import '../services/auth_service.dart';
-import 'main_screen.dart';
+import '../services/api_config.dart';
+import '../services/emprestimo_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class EpiDetalheScreen extends StatefulWidget {
+  final Epi epi; // EPI escolhido na lista
+  final Usuario usuario; // funcionário logado
+
+  const EpiDetalheScreen({
+    super.key,
+    required this.epi,
+    required this.usuario,
+  });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<EpiDetalheScreen> createState() => _EpiDetalheScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController matriculaController = TextEditingController();
-  final TextEditingController senhaController = TextEditingController();
+class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
+  final formKey = GlobalKey<FormState>();
+  final observacaoController = TextEditingController();
   bool carregando = false;
 
-  Future<void> fazerLogin() async {
+  @override
+  void dispose() {
+    observacaoController.dispose();
+    super.dispose();
+  }
+
+  Future<void> solicitarEmprestimo() async {
+    // 1. Valida o formulário antes de chamar a API
+    if (!formKey.currentState!.validate()) return;
+
+    setState(() {
+      carregando = true;
+    });
+
     try {
-      setState(() {
-        carregando = true;
-      });
-      Usuario usuario = await AuthService().login(
-        matriculaController.text,
-        senhaController.text,
+      // 2. Envia o POST
+      await EmprestimoService().solicitar(
+        funcionarioId: widget.usuario.id,
+        epiId: widget.epi.id,
+        observacao: observacaoController.text.trim(),
       );
+
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MainScreen(
-            usuario: usuario,
-          ),
+
+      // 3. Sucesso: avisa e volta para a lista
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Solicitação enviada! Aguarde a aprovação.'),
+          backgroundColor: Colors.green,
         ),
       );
+      Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
+
+      // 4. Erro: mostra a mensagem que veio da API
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+          ),
+          backgroundColor: Colors.red,
         ),
       );
     } finally {
-      setState(() {
-        carregando = false;
-      });
+      if (mounted) {
+        setState(() {
+          carregando = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final epi = widget.epi;
+
+    // O app só libera o botão se o EPI puder ser emprestado
+    final podeSolicitar = !epi.caVencido && epi.quantidadeDisponivel > 0;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Detalhes do EPI'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 30),
-            TextField(
-              controller: matriculaController,
-              decoration: const InputDecoration(
-                labelText: 'Matrícula',
-                border: OutlineInputBorder(),
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Foto do EPI
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  '${ApiConfig.baseUrl}${epi.imagemUrl}',
+                  height: 200,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      color: Colors.blue.shade50,
+                      child: const Icon(
+                        Icons.health_and_safety,
+                        size: 80,
+                        color: Colors.blue,
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: senhaController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Senha',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+
+              // Dados do EPI
+              Text(
+                epi.nome,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: carregando ? null : fazerLogin,
-                child: carregando
-                    ? const CircularProgressIndicator()
-                    : const Text('Entrar'),
+              const SizedBox(height: 6),
+              Text(
+                epi.categoria,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
               ),
-            ),
-          ],
+              const Divider(height: 30),
+
+              linhaInfo(Icons.verified, 'CA', epi.ca),
+              linhaInfo(
+                Icons.event,
+                'Validade do CA',
+                epi.validadeFormatada,
+                cor: epi.caVencido ? Colors.red : null,
+              ),
+              linhaInfo(
+                Icons.inventory_2,
+                'Disponível',
+                '${epi.quantidadeDisponivel} un.',
+              ),
+              const Divider(height: 30),
+
+              // Formulário de solicitação
+              Text(
+                'Solicitante: ${widget.usuario.nome} '
+                '(matrícula ${widget.usuario.matricula})',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: observacaoController,
+                maxLines: 3,
+                maxLength: 200,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo da solicitação',
+                  hintText: 'Ex.: capacete atual está trincado',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (valor) {
+                  if (valor == null || valor.trim().isEmpty) {
+                    return 'Informe o motivo da solicitação';
+                  }
+                  if (valor.trim().length < 5) {
+                    return 'Escreva pelo menos 5 caracteres';
+                  }
+                  return null; // null = campo válido
+                },
+              ),
+              const SizedBox(height: 8),
+
+              // Aviso quando o EPI não pode ser emprestado
+              if (!podeSolicitar)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    epi.caVencido
+                        ? 'CA vencido: este EPI não pode ser emprestado.'
+                        : 'EPI sem estoque no momento.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+              // Botão Solicitar Empréstimo
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: (carregando || !podeSolicitar)
+                      ? null
+                      : solicitarEmprestimo,
+                  icon: carregando
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send),
+                  label: const Text('Solicitar Empréstimo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
-</file>
 
-<file path="app_epi/lib/services/auth_service.dart">
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../models/usuario.dart';
-import 'api_config.dart';
-
-class AuthService {
-  Future<Usuario> login(
-    String matricula,
-    String senha,
-  ) async {
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/auth/login'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'matricula': matricula,
-        'senha': senha,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return Usuario.fromJson(
-        jsonDecode(response.body),
-      );
-    }
-
-    throw Exception(
-      'Matrícula ou senha inválidos',
+  // Monta uma linha "ícone + rótulo + valor"
+  Widget linhaInfo(
+    IconData icone,
+    String rotulo,
+    String valor, {
+    Color? cor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icone, color: cor ?? Colors.blue),
+          const SizedBox(width: 10),
+          Text(
+            '$rotulo: ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: Text(valor, style: TextStyle(color: cor)),
+          ),
+        ],
+      ),
     );
   }
 }
 </file>
 
-<file path="src/main/java/com/senac/api_epi/controllers/AuthController.java">
+<file path="app_epi/lib/services/emprestimo_service.dart">
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'api_config.dart';
+
+class EmprestimoService {
+  // Envia solicitação de empréstimo para a API
+  Future<void> solicitar({
+    required int funcionarioId,
+    required int epiId,
+    required String observacao,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/emprestimos'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'funcionario': {'id': funcionarioId},
+        'epi': {'id': epiId},
+        'observacao': observacao,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      return;
+    }
+
+    throw Exception(utf8.decode(response.bodyBytes));
+  }
+}
+</file>
+
+<file path="src/main/java/com/senac/api_epi/controllers/EmprestimoController.java">
 package com.senac.api_epi.controllers;
 
-import com.senac.api_epi.entities.Funcionario;
-import com.senac.api_epi.repositories.FuncionarioRepository;
+import com.senac.api_epi.entities.Emprestimo;
+import com.senac.api_epi.service.EmprestimoService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/auth")
-public class AuthController {
-    private final FuncionarioRepository repository;
-    public AuthController(
-        FuncionarioRepository repository){
-            this.repository = repository;
+@RequestMapping("/emprestimos")
+public class EmprestimoController {
+
+    private final EmprestimoService service;
+
+    public EmprestimoController(EmprestimoService service){
+        this.service = service;
+    }
+
+    // POST /emprestimos -> funcionário solicita um EPI
+    @PostMapping
+    public ResponseEntity<?> solicitar(@RequestBody Emprestimo pedido){
+        try {
+            Emprestimo emprestimo = service.solicitar(pedido);
+            return ResponseEntity.status(HttpStatus.CREATED)//201
+            .body(emprestimo);
+        } catch (IllegalArgumentException e){
+            return ResponseEntity.badRequest()//400
+            .body(e.getMessage());
         }
-    @PostMapping ("/login")
-    public ResponseEntity<?> login(
-        @RequestBody Funcionario funcionarioLogin
-    ) {
-        Funcionario funcionario = repository.findByMatriculaAndSenha(funcionarioLogin.getMatricula(), funcionarioLogin.getSenha()).orElse(null);
-        if (funcionario == null){
-            return ResponseEntity.badRequest().body("Matrícula ou senha inválidos");
+    }
+
+    // GET /emprestimos/funcionario/2 -> emprestimos de um funcionário
+    @GetMapping("/funcionario/{id}")
+    public List<Emprestimo> listarPorFuncionario(@PathVariable Long id){
+        return service.listarPorFuncionario(id);
+    }
+}
+</file>
+
+<file path="src/main/java/com/senac/api_epi/service/EmprestimoService.java">
+package com.senac.api_epi.service;
+
+import com.senac.api_epi.entities.Emprestimo;
+import com.senac.api_epi.entities.Epi;
+import com.senac.api_epi.entities.Funcionario;
+import com.senac.api_epi.repositories.EmprestimoRepository;
+import com.senac.api_epi.repositories.EpiRepository;
+import com.senac.api_epi.repositories.FuncionarioRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+public class EmprestimoService {
+
+    private final EmprestimoRepository emprestimoRepository;
+    private final FuncionarioRepository funcionarioRepository;
+    private final EpiRepository epiRepository;
+
+    public EmprestimoService(EmprestimoRepository emprestimoRepository, FuncionarioRepository funcionarioRepository, EpiRepository epiRepository) {
+        this.emprestimoRepository = emprestimoRepository;
+        this.funcionarioRepository = funcionarioRepository;
+        this.epiRepository = epiRepository;
+    }
+
+    public Emprestimo solicitar(Emprestimo pedido) {
+        // 1. O app enviou o funcionário e o EPI com id?
+        if (pedido.getFuncionario() == null || pedido.getFuncionario().getId() == null || pedido.getEpi() == null || pedido.getEpi().getId() == null) {
+            throw new IllegalArgumentException("Informe o funcionário e o EPI");
         }
-        return ResponseEntity.ok(funcionario);
+
+        // 2. O pedido chega só com os ids: busca os dados completos no banco
+        Funcionario funcionario = funcionarioRepository.findById(pedido.getFuncionario().getId()).orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
+
+        Epi epi = epiRepository.findById(pedido.getEpi().getId()).orElseThrow(() -> new IllegalArgumentException("EPI não encontrado"));
+
+        // 3. Regras de negócio (NR-06)
+        if (epi.isCaVencido()){
+            throw new IllegalArgumentException(
+                    "EPI com CA vencido não pode ser emprestado");
+        }
+
+        if (epi.getQuantidadeDisponivel() <= 0){
+            throw new IllegalArgumentException("EPI sem estoque disponível");
+        }
+
+        boolean jaSolicitou = emprestimoRepository.existsByFuncionarioIdAndEpiIdAndStatus(funcionario.getId(), epi.getId(), "SOLICITADO");
+
+            if (jaSolicitou){
+                throw new IllegalArgumentException("Você já tem uma solicitação aberta para este EPI");
+            }
+
+        // 4. A API decidade estes campos (não confiamos no que veio do app)
+        pedido.setId(null); // sempre um registro novo
+        pedido.setFuncionario(funcionario); // troca "só o id" pelo objeo completo
+        pedido.setEpi(epi);
+        pedido.setDataEmprestimo(LocalDate.now());
+        pedido.setDataDevolucao(null);
+        pedido.setStatus("SOLICITADO");
+
+        // 5. Grava na tabela emprestimo
+        return emprestimoRepository.save(pedido);
+    }
+
+    public List<Emprestimo> listarPorFuncionario(Long funcionarioId){
+        return emprestimoRepository.findByFuncionarioIdOrderByIdDesc(funcionarioId);
     }
 }
 </file>
@@ -2069,6 +2290,22 @@ class Epi {
     }
   }
 
+  // Alias para compatibilidade com epi_detalhe_screen.dart
+  bool get caVencido => isCaVencido;
+
+  // Formata a data de AAAA-MM-DD para DD/MM/AAAA
+  String get validadeFormatada {
+    try {
+      final partes = validadeCa.split('-');
+      if (partes.length == 3) {
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+      return validadeCa;
+    } catch (_) {
+      return validadeCa;
+    }
+  }
+
   factory Epi.fromJson(Map<String, dynamic> json) {
     return Epi(
       id: json['id'],
@@ -2108,14 +2345,45 @@ class Funcionario {
 }
 </file>
 
+<file path="app_epi/lib/models/usuario.dart">
+class Usuario {
+  final int id;
+  final String matricula;
+  final String nome;
+  final String setor;
+  final String perfil;
+  Usuario({
+    required this.id,
+    required this.matricula,
+    required this.nome,
+    required this.setor,
+    required this.perfil,
+  });
+  factory Usuario.fromJson(
+    Map<String, dynamic> json){
+      return Usuario(id: json['id'],
+      matricula: json['matricula'],
+      nome: json['nome'],
+      setor: json['setor'],
+      perfil: json['perfil'],
+      );
+    }
+}
+</file>
+
 <file path="app_epi/lib/screens/epi_screen.dart">
 import 'package:flutter/material.dart';
+
 import '../models/epi.dart';
+import '../models/usuario.dart';
 import '../services/epi_service.dart';
 import '../services/api_config.dart';
+import 'epi_detalhe_screen.dart';
 
 class EpiScreen extends StatelessWidget {
-  const EpiScreen({super.key});
+  final Usuario usuario;
+
+  const EpiScreen({super.key, required this.usuario});
 
   @override
   Widget build(BuildContext context) {
@@ -2138,23 +2406,17 @@ class EpiScreen extends StatelessWidget {
         future: EpiService().buscarEpis(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Erro: ${snapshot.error}'),
-            );
+            return Center(child: Text('Erro: ${snapshot.error}'));
           }
 
           final epis = snapshot.data ?? [];
 
           if (epis.isEmpty) {
-            return const Center(
-              child: Text('Nenhum EPI cadastrado.'),
-            );
+            return const Center(child: Text('Nenhum EPI cadastrado.'));
           }
 
           return ListView.builder(
@@ -2166,10 +2428,7 @@ class EpiScreen extends StatelessWidget {
 
               return Card(
                 elevation: 3,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 // Destaca com fundo avermelhado e borda vermelha se o CA estiver vencido
                 color: vencido ? Colors.red.shade50 : Colors.white,
                 shape: RoundedRectangleBorder(
@@ -2180,6 +2439,15 @@ class EpiScreen extends StatelessWidget {
                   ),
                 ),
                 child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EpiDetalheScreen(epi: epi, usuario: usuario),
+                      ),
+                    );
+                  },
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
@@ -2191,7 +2459,9 @@ class EpiScreen extends StatelessWidget {
                         return Container(
                           width: 55,
                           height: 55,
-                          color: vencido ? Colors.red.shade100 : Colors.blue.shade50,
+                          color: vencido
+                              ? Colors.red.shade100
+                              : Colors.blue.shade50,
                           child: Icon(
                             Icons.health_and_safety,
                             color: vencido ? Colors.red : Colors.blue,
@@ -2336,102 +2606,98 @@ class FuncionarioScreen extends StatelessWidget {
 }
 </file>
 
-<file path="app_epi/lib/screens/main_screen.dart">
+<file path="app_epi/lib/screens/login_screen.dart">
 import 'package:flutter/material.dart';
-
-import 'epi_screen.dart';
-import 'funcionario_screen.dart';
-
 import '../models/usuario.dart';
-import 'login_screen.dart';
+import '../services/auth_service.dart';
+import 'main_screen.dart';
 
-class MainScreen extends StatelessWidget {
-  final Usuario usuario;
-  const MainScreen({
-    super.key,
-    required this.usuario,});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController matriculaController = TextEditingController();
+  final TextEditingController senhaController = TextEditingController();
+  bool carregando = false;
+
+  Future<void> fazerLogin() async {
+    try {
+      setState(() {
+        carregando = true;
+      });
+      Usuario usuario = await AuthService().login(
+        matriculaController.text,
+        senhaController.text,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainScreen(
+            usuario: usuario,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+        ),
+      );
+    } finally {
+      setState(() {
+        carregando = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Empréstimos de EPIs'),
+        title: const Text('Login'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
           children: [
-            UserAccountsDrawerHeader(
-              accountName: Text(usuario.nome),
-              accountEmail: Text(
-                usuario.perfil,
-              ),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  usuario.nome[0],
-                  style: const TextStyle(fontSize: 40.0),
-                ),
+            const SizedBox(height: 30),
+            TextField(
+              controller: matriculaController,
+              decoration: const InputDecoration(
+                labelText: 'Matrícula',
+                border: OutlineInputBorder(),
               ),
             ),
-            //const DrawerHeader(
-              //decoration: BoxDecoration(color: Colors.blue),
-              //child: Text(
-                //'Menu Principal',
-                //style: TextStyle(color: Colors.white, fontSize: 22),
-              //),
-            //),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Início'),
-              onTap: () => Navigator.pop(context),
+            const SizedBox(height: 20),
+            TextField(
+              controller: senhaController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Senha',
+                border: OutlineInputBorder(),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.health_and_safety),
-              title: const Text('EPIs'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const EpiScreen()),
-                );
-              },
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: carregando ? null : fazerLogin,
+                child: carregando
+                    ? const CircularProgressIndicator()
+                    : const Text('Entrar'),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.people),
-              title: const Text('Funcionários'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FuncionarioScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sair'),
-              onTap: () {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-                );
-              },
-            )
           ],
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Bem-vindo ${usuario.nome}',
-          style: const TextStyle(fontSize: 18),
-        ),
-        //child: Text(
-          //'Selecione uma opção no menu lateral',
-          //style: TextStyle(fontSize: 18),
-        ),
-      );
+    );
   }
 }
 </file>
@@ -2439,6 +2705,41 @@ class MainScreen extends StatelessWidget {
 <file path="app_epi/lib/services/api_config.dart">
 class ApiConfig {
   static const String baseUrl = 'http://localhost:8080';
+}
+</file>
+
+<file path="app_epi/lib/services/auth_service.dart">
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/usuario.dart';
+import 'api_config.dart';
+
+class AuthService {
+  Future<Usuario> login(
+    String matricula,
+    String senha,
+  ) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/auth/login'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'matricula': matricula,
+        'senha': senha,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return Usuario.fromJson(
+        jsonDecode(utf8.decode(response.bodyBytes)),
+      );
+    }
+
+    throw Exception(
+      'Matrícula ou senha inválidos',
+    );
+  }
 }
 </file>
 
@@ -2486,28 +2787,6 @@ class FuncionarioService {
     } else {
       throw Exception('Erro ao carregar funcionários: ${response.statusCode}');
     }
-  }
-}
-</file>
-
-<file path="app_epi/lib/main.dart">
-import 'package:app_epi/screens/login_screen.dart';
-import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Controle de EPIs',
-      home: LoginScreen(),
-    );
   }
 }
 </file>
@@ -6291,6 +6570,35 @@ public class WebConfig implements WebMvcConfigurer {
 }
 </file>
 
+<file path="src/main/java/com/senac/api_epi/controllers/AuthController.java">
+package com.senac.api_epi.controllers;
+
+import com.senac.api_epi.entities.Funcionario;
+import com.senac.api_epi.repositories.FuncionarioRepository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+    private final FuncionarioRepository repository;
+    public AuthController(
+        FuncionarioRepository repository){
+            this.repository = repository;
+        }
+    @PostMapping ("/login")
+    public ResponseEntity<?> login(
+        @RequestBody Funcionario funcionarioLogin
+    ) {
+        Funcionario funcionario = repository.findByMatriculaAndSenha(funcionarioLogin.getMatricula(), funcionarioLogin.getSenha()).orElse(null);
+        if (funcionario == null){
+            return ResponseEntity.badRequest().body("Matrícula ou senha inválidos");
+        }
+        return ResponseEntity.ok(funcionario);
+    }
+}
+</file>
+
 <file path="src/main/java/com/senac/api_epi/controllers/EpiController.java">
 package com.senac.api_epi.controllers;
 
@@ -6335,32 +6643,43 @@ public class FuncionarioController {
 
 <file path="src/main/java/com/senac/api_epi/entities/Emprestimo.java">
 package com.senac.api_epi.entities;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import java.time.LocalDate;
+
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
 public class Emprestimo {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "funcionario_id")
     private Funcionario funcionario;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "epi_id")
     private Epi epi;
+
     @Column(nullable = false)
     private LocalDate dataEmprestimo;
     private LocalDate dataDevolucao;
+
     @Column(nullable = false, length = 15)
     private String status;
+
+    @Column(length = 200)
+    private String observacao;
 }
 </file>
 
@@ -6401,45 +6720,10 @@ public class Epi {
     @Column(nullable = false)
     private String imagemUrl;
     @Column(nullable = false)
-    private int quantidadeDisponivel;
+    private Integer quantidadeDisponivel;
     public boolean isCaVencido() {
         return validadeCa.isBefore(LocalDate.now());
     }
-}
-</file>
-
-<file path="src/main/java/com/senac/api_epi/entities/Funcionario.java">
-package com.senac.api_epi.entities;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Entity
-public class Funcionario {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @Column(nullable = false, unique = true, length = 20)
-    private String matricula;
-
-    @Column(nullable = false, length = 120)
-    private String nome;
-
-    @Column(nullable = false, length = 80)
-    private String setor;
-
-    @Column(nullable = false, length = 20)
-    private String perfil;
-
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false, length = 60)
-    private String senha;
 }
 </file>
 
@@ -6465,17 +6749,6 @@ package com.senac.api_epi.repositories;
 import com.senac.api_epi.entities.Epi;
 import org.springframework.data.jpa.repository.JpaRepository;
 public interface EpiRepository extends JpaRepository<Epi, Long> {
-}
-</file>
-
-<file path="src/main/java/com/senac/api_epi/repositories/FuncionarioRepository.java">
-package com.senac.api_epi.repositories;
-import com.senac.api_epi.entities.Funcionario;
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
-public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> {
-    Optional<Funcionario> findByMatricula(String matricula);
-    Optional<Funcionario> findByMatriculaAndSenha(String matricula, String senha);
 }
 </file>
 
@@ -7180,6 +7453,171 @@ Write-Output "MVN_CMD=$MAVEN_HOME/bin/$MVN_CMD"
 	</build>
 
 </project>
+</file>
+
+<file path="app_epi/lib/screens/main_screen.dart">
+import 'package:flutter/material.dart';
+
+import '../models/usuario.dart';
+import 'epi_screen.dart';
+import 'funcionario_screen.dart';
+import 'login_screen.dart';
+
+class MainScreen extends StatelessWidget {
+  final Usuario usuario;
+
+  const MainScreen({
+    super.key,
+    required this.usuario,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Empréstimos de EPIs'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: Colors.blue),
+              accountName: Text(usuario.nome),
+              accountEmail: Text(usuario.perfil),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  usuario.nome.isNotEmpty ? usuario.nome[0].toUpperCase() : '?',
+                  style: const TextStyle(fontSize: 40.0, color: Colors.blue),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Início'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.health_and_safety),
+              title: const Text('EPIs'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    // Corrigido de (usuario, usuario) para (usuario: usuario)
+                    builder: (_) => EpiScreen(usuario: usuario),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Funcionários'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FuncionarioScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sair'),
+              onTap: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Bem-vindo, ${usuario.nome}',
+          style: const TextStyle(fontSize: 18),
+        ),
+      ),
+    );
+  }
+}
+</file>
+
+<file path="app_epi/lib/main.dart">
+import 'package:app_epi/screens/login_screen.dart';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Controle de EPIs',
+      home: LoginScreen(),
+    );
+  }
+}
+</file>
+
+<file path="src/main/java/com/senac/api_epi/entities/Funcionario.java">
+package com.senac.api_epi.entities;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+public class Funcionario {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(nullable = false, unique = true, length = 20)
+    private String matricula;
+
+    @Column(nullable = false, length = 120)
+    private String nome;
+
+    @Column(nullable = false, length = 80)
+    private String setor;
+
+    @Column(nullable = false, length = 20)
+    private String perfil;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Column(nullable = false, length = 60)
+    private String senha;
+}
+</file>
+
+<file path="src/main/java/com/senac/api_epi/repositories/FuncionarioRepository.java">
+package com.senac.api_epi.repositories;
+import com.senac.api_epi.entities.Funcionario;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> {
+    Optional<Funcionario> findByMatricula(String matricula);
+    Optional<Funcionario> findByMatriculaAndSenha(String matricula, String senha);
+}
 </file>
 
 </files>

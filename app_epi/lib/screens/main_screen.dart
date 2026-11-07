@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../models/usuario.dart';
 import 'epi_screen.dart';
 import 'funcionario_screen.dart';
-
-import '../models/usuario.dart';
 import 'login_screen.dart';
+import 'meus_emprestimos_screen.dart';
 
 class MainScreen extends StatelessWidget {
   final Usuario usuario;
+
   const MainScreen({
     super.key,
-    required this.usuario,});
+    required this.usuario,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,25 +27,17 @@ class MainScreen extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: [
             UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: Colors.blue),
               accountName: Text(usuario.nome),
-              accountEmail: Text(
-                usuario.perfil,
-              ),
+              accountEmail: Text(usuario.perfil),
               currentAccountPicture: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Text(
-                  usuario.nome[0],
-                  style: const TextStyle(fontSize: 40.0),
+                  usuario.nome.isNotEmpty ? usuario.nome[0].toUpperCase() : '?',
+                  style: const TextStyle(fontSize: 40.0, color: Colors.blue),
                 ),
               ),
             ),
-            //const DrawerHeader(
-              //decoration: BoxDecoration(color: Colors.blue),
-              //child: Text(
-                //'Menu Principal',
-                //style: TextStyle(color: Colors.white, fontSize: 22),
-              //),
-            //),
             ListTile(
               leading: const Icon(Icons.home),
               title: const Text('Início'),
@@ -56,7 +50,22 @@ class MainScreen extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const EpiScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => EpiScreen(usuario: usuario),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment),
+              title: const Text('Meus Empréstimos'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MeusEmprestimosScreen(usuario: usuario),
+                  ),
                 );
               },
             ),
@@ -67,7 +76,9 @@ class MainScreen extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const FuncionarioScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const FuncionarioScreen(),
+                  ),
                 );
               },
             ),
@@ -75,23 +86,22 @@ class MainScreen extends StatelessWidget {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair'),
               onTap: () {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
                 );
               },
-            )
+            ),
           ],
         ),
       ),
       body: Center(
         child: Text(
-          'Bem-vindo ${usuario.nome}',
+          'Bem-vindo, ${usuario.nome}',
           style: const TextStyle(fontSize: 18),
         ),
-        //child: Text(
-          //'Selecione uma opção no menu lateral',
-          //style: TextStyle(fontSize: 18),
-        ),
-      );
+      ),
+    );
   }
 }

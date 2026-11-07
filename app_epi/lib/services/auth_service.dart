@@ -21,7 +21,7 @@ class AuthService {
 
     if (response.statusCode == 200) {
       return Usuario.fromJson(
-        jsonDecode(response.body),
+        jsonDecode(utf8.decode(response.bodyBytes)),
       );
     }
 

@@ -34,7 +34,7 @@ public class Epi {
     @Column(nullable = false)
     private String imagemUrl;
     @Column(nullable = false)
-    private int quantidadeDisponivel;
+    private Integer quantidadeDisponivel;
     public boolean isCaVencido() {
         return validadeCa.isBefore(LocalDate.now());
     }
