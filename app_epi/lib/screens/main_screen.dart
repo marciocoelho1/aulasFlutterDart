@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../models/usuario.dart';
+import 'cadastrar_treinamento_screen.dart';
 import 'epi_screen.dart';
 import 'funcionario_screen.dart';
 import 'login_screen.dart';
 import 'meus_emprestimos_screen.dart';
+import 'treinamentos_screen.dart';
 
 class MainScreen extends StatelessWidget {
   final Usuario usuario;
 
-  const MainScreen({
-    super.key,
-    required this.usuario,
-  });
+  const MainScreen({super.key, required this.usuario});
+
+  // Aula 5: só o administrador enxerga as ações de gestão.
+  // trim + toLowerCase evita quebrar com "admin", "ADMIN" ou "Admin ".
+  bool get _isAdmin => usuario.perfil.trim().toLowerCase() == 'admin';
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +85,35 @@ class MainScreen extends StatelessWidget {
                 );
               },
             ),
+            //  Aula 6: treinamentos (todos os perfis)
+            ListTile(
+              leading: const Icon(Icons.school),
+              title: const Text('Treinamentos'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TreinamentosScreen(usuario: usuario),
+                  ),
+                );
+              },
+            ),
+            // Aula 7: item exclusivo do administrador
+            if (_isAdmin)
+              ListTile(
+                leading: const Icon(Icons.library_add),
+                title: const Text('Cadastrar Treinamento'),
+                onTap: () {
+                  Navigator.pop(context); // fecha o drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CadastrarTreinamentoScreen(usuario: usuario),
+                    ),
+                  );
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Sair'),

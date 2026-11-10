@@ -70,7 +70,7 @@ class MeusEmprestimosScreen extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: corStatus.withOpacity(0.15),
+                    backgroundColor: corStatus.withValues(alpha: 0.15),
                     child: Icon(Icons.assignment, color: corStatus),
                   ),
                   title: Text(

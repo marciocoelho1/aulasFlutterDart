@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/funcionario.dart';
 import '../services/funcionario_service.dart';
+import 'treinamentos_do_funcionario_screen.dart';
 
 class FuncionarioScreen extends StatelessWidget {
   const FuncionarioScreen({super.key});
@@ -64,6 +65,16 @@ class FuncionarioScreen extends StatelessWidget {
                 elevation: 3,
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 child: ListTile(
+                  onTap: () {
+                    // Item 2: abre os treinamentos concluídos do funcionário
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TreinamentosDoFuncionarioScreen(funcionario: func),
+                      ),
+                    );
+                  },
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue.shade100,
                     child: Icon(
@@ -78,6 +89,7 @@ class FuncionarioScreen extends StatelessWidget {
                   subtitle: Text(
                     'Matrícula: ${func.matricula}\nSetor: ${func.setor}',
                   ),
+                  trailing: const Icon(Icons.chevron_right),
                 ),
               );
             },
