@@ -1,4 +1,5 @@
 import 'epi.dart';
+import 'funcionario.dart';
 
 class Emprestimo {
   final int id;
@@ -6,6 +7,8 @@ class Emprestimo {
   final String status;
   final String observacao;
   final Epi epi;
+  // Só vem preenchido na listagem do painel (GET /emprestimos)
+  final Funcionario? funcionario;
 
   Emprestimo({
     required this.id,
@@ -13,6 +16,7 @@ class Emprestimo {
     required this.status,
     required this.observacao,
     required this.epi,
+    this.funcionario,
   });
 
   // Formata a data de AAAA-MM-DD para DD/MM/AAAA
@@ -20,7 +24,7 @@ class Emprestimo {
     try {
       final partes = dataEmprestimo.split('-');
       if (partes.length == 3) {
-        return '\${partes[2]}/${partes[1]}/${partes[0]}';
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
       }
       return dataEmprestimo;
     } catch (_) {
@@ -35,6 +39,9 @@ class Emprestimo {
       status: json['status'] ?? '',
       observacao: json['observacao'] ?? '',
       epi: Epi.fromJson(json['epi']),
+      funcionario: json['funcionario'] != null
+          ? Funcionario.fromJson(json['funcionario'])
+          : null,
     );
   }
 }

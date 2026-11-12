@@ -11,4 +11,9 @@ public interface EmprestimoRepository extends JpaRepository<Emprestimo, Long> {
             Long epiId,
             String status
     );
+
+    long countByStatus(String status);
+
+    // NOVO na Aula 7: todos os empréstimos, do mais recente para o mais antigo
+    List<Emprestimo> findAllByOrderByIdDesc();
 }

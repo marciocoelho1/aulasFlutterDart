@@ -40,4 +40,48 @@ class EmprestimoService {
       throw Exception('Erro ao carregar empréstimos: ${response.statusCode}');
     }
   }
+
+  // NOVO na Aula 7: todas as solicitações (tela SolicitacoesScreen)
+  Future<List<Emprestimo>> buscarTodos() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/emprestimos'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> lista = json.decode(utf8.decode(response.bodyBytes));
+      return lista.map((item) => Emprestimo.fromJson(item)).toList();
+    } else {
+      throw Exception('Erro ao carregar solicitações: ${response.statusCode}');
+    }
+  }
+
+  // PUT /emprestimos/5/aprovar?adminId=1 -> SOLICITADO vira EMPRESTADO
+  Future<void> aprovar(int id, int adminId) async {
+    final response = await http.put(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/emprestimos/$id/aprovar?adminId=$adminId',
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    throw Exception(utf8.decode(response.bodyBytes));
+  }
+
+  // PUT /emprestimos/5/devolver?adminId=1 -> EMPRESTADO vira DEVOLVIDO
+  Future<void> devolver(int id, int adminId) async {
+    final response = await http.put(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/emprestimos/$id/devolver?adminId=$adminId',
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    throw Exception(utf8.decode(response.bodyBytes));
+  }
 }

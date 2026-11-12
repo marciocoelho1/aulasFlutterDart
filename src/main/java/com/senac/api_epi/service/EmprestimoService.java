@@ -17,14 +17,17 @@ public class EmprestimoService {
     private final EmprestimoRepository emprestimoRepository;
     private final FuncionarioRepository funcionarioRepository;
     private final EpiRepository epiRepository;
+    private final AutorizacaoService autorizacaoService;
 
     public EmprestimoService(
             EmprestimoRepository emprestimoRepository,
             FuncionarioRepository funcionarioRepository,
-            EpiRepository epiRepository) {
+            EpiRepository epiRepository,
+            AutorizacaoService autorizacaoService) {
         this.emprestimoRepository = emprestimoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.epiRepository = epiRepository;
+        this.autorizacaoService = autorizacaoService;
     }
 
     public Emprestimo solicitar(Emprestimo pedido) {
@@ -83,5 +86,54 @@ public class EmprestimoService {
 
     public List<Emprestimo> listarPorFuncionario(Long funcionarioId) {
         return emprestimoRepository.findByFuncionarioIdOrderByIdDesc(funcionarioId);
+    }
+
+    // NOVO na Aula 7: todas as solicitações (tela SolicitacoesScreen)
+    public List<Emprestimo> listarTodos() {
+        return emprestimoRepository.findAllByOrderByIdDesc();
+    }
+
+    // SOLICITADO -> EMPRESTADO (baixa uma unidade do estoque)
+    public Emprestimo aprovar(Long id, Long adminId) {
+        autorizacaoService.exigirAdmin(adminId);
+
+        Emprestimo emprestimo = emprestimoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Empréstimo não encontrado"));
+
+        if (!"SOLICITADO".equals(emprestimo.getStatus())) {
+            throw new IllegalArgumentException("Só solicitações pendentes podem ser aprovadas");
+        }
+
+        Epi epi = emprestimo.getEpi();
+
+        if (epi.getQuantidadeDisponivel() <= 0) {
+            throw new IllegalArgumentException("EPI sem estoque disponível");
+        }
+
+        epi.setQuantidadeDisponivel(epi.getQuantidadeDisponivel() - 1);
+        epiRepository.save(epi);
+
+        emprestimo.setStatus("EMPRESTADO");
+        return emprestimoRepository.save(emprestimo);
+    }
+
+    // EMPRESTADO -> DEVOLVIDO (devolve a unidade ao estoque)
+    public Emprestimo devolver(Long id, Long adminId) {
+        autorizacaoService.exigirAdmin(adminId);
+
+        Emprestimo emprestimo = emprestimoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Empréstimo não encontrado"));
+
+        if (!"EMPRESTADO".equals(emprestimo.getStatus())) {
+            throw new IllegalArgumentException("Só empréstimos em uso podem ser devolvidos");
+        }
+
+        Epi epi = emprestimo.getEpi();
+        epi.setQuantidadeDisponivel(epi.getQuantidadeDisponivel() + 1);
+        epiRepository.save(epi);
+
+        emprestimo.setStatus("DEVOLVIDO");
+        emprestimo.setDataDevolucao(LocalDate.now());
+        return emprestimoRepository.save(emprestimo);
     }
 }

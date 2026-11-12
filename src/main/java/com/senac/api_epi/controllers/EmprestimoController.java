@@ -37,4 +37,34 @@ public class EmprestimoController {
     public List<Emprestimo> listarPorFuncionario(@PathVariable Long id){
         return service.listarPorFuncionario(id);
     }
+
+    // NOVO na Aula 7: GET /emprestimos -> todas as solicitações
+    @GetMapping
+    public List<Emprestimo> listarTodos(){
+        return service.listarTodos();
+    }
+
+    // PUT /emprestimos/5/aprovar?adminId=1 -> SOLICITADO vira EMPRESTADO
+    @PutMapping("/{id}/aprovar")
+    public ResponseEntity<?> aprovar(@PathVariable Long id, @RequestParam Long adminId){
+        try {
+            return ResponseEntity.ok(service.aprovar(id, adminId));
+        } catch (SecurityException e){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // PUT /emprestimos/5/devolver?adminId=1 -> EMPRESTADO vira DEVOLVIDO
+    @PutMapping("/{id}/devolver")
+    public ResponseEntity<?> devolver(@PathVariable Long id, @RequestParam Long adminId){
+        try {
+            return ResponseEntity.ok(service.devolver(id, adminId));
+        } catch (SecurityException e){
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

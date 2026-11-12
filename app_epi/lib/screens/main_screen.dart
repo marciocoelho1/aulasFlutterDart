@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../models/usuario.dart';
 import 'cadastrar_treinamento_screen.dart';
+import 'dashboard_screen.dart'; // Aula 7
 import 'epi_screen.dart';
 import 'funcionario_screen.dart';
 import 'login_screen.dart';
 import 'meus_emprestimos_screen.dart';
+import 'painel_funcionario_screen.dart';
 import 'treinamentos_screen.dart';
 
 class MainScreen extends StatelessWidget {
@@ -128,12 +130,18 @@ class MainScreen extends StatelessWidget {
           ],
         ),
       ),
-      body: Center(
-        child: Text(
-          'Bem-vindo, ${usuario.nome}',
-          style: const TextStyle(fontSize: 18),
-        ),
-      ),
+      // Aula 7: ADMIN vê o painel; FUNCIONARIO vê os próprios indicadores;
+      // os demais perfis continuam com a mensagem de boas-vindas.
+      body: usuario.perfil == 'ADMIN'
+          ? DashboardScreen(usuario: usuario)
+          : usuario.perfil == 'FUNCIONARIO'
+          ? PainelFuncionario(usuario: usuario)
+          : Center(
+              child: Text(
+                'Bem-vindo, ${usuario.nome}',
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
     );
   }
 }
