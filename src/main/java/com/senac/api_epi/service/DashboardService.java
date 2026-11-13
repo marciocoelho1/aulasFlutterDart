@@ -1,6 +1,5 @@
 package com.senac.api_epi.service;
 
-import com.senac.api_epi.entities.Funcionario;
 import com.senac.api_epi.repositories.*;
 import org.springframework.stereotype.Service;
 
@@ -16,29 +15,36 @@ public class DashboardService {
     private final FuncionarioRepository funcionarioRepository;
     private final TreinamentoRepository treinamentoRepository;
     private final TreinamentoRealizadoRepository realizadoRepository;
+    private final AutorizacaoService autorizacaoService;
 
     public DashboardService(EpiRepository epiRepository,
                             EmprestimoRepository emprestimoRepository,
                             FuncionarioRepository funcionarioRepository,
                             TreinamentoRepository treinamentoRepository,
-                            TreinamentoRealizadoRepository realizadoRepository) {
+                            TreinamentoRealizadoRepository realizadoRepository,
+                            AutorizacaoService autorizacaoService) {
         this.epiRepository = epiRepository;
         this.emprestimoRepository = emprestimoRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.treinamentoRepository = treinamentoRepository;
         this.realizadoRepository = realizadoRepository;
+        this.autorizacaoService = autorizacaoService;
     }
 
     public Map<String, Long> indicadores(Long adminId) {
-        verificarAdmin(adminId);
+        // Mesma regra de acesso dos outros serviços (aceita "Admin", "ADMIN", ...).
+        autorizacaoService.exigirAdmin(adminId);
 
         // Treinamentos pendentes:
         // cada funcionário deve fazer todos os treinamentos.
-        // 3 funcionários x 4 treinamentos = 12 obrigatórios - os já feitos
+        // 3 funcionários x 4 treinamentos = 12 obrigatórios - os já feitos.
         long funcionarios = funcionarioRepository.count();
         long treinamentos = treinamentoRepository.count();
-        long realizados = realizadoRepository.count();
-        long pendentes = funcionarios * treinamentos - realizados;
+
+        // Um treinamento refeito gera outro registro; contamos pares distintos
+        // (funcionário, treinamento) para não deixar o número negativo.
+        long realizados = realizadoRepository.buscarParesDistintos().size();
+        long pendentes = Math.max(0, funcionarios * treinamentos - realizados);
 
         // LinkedHashMap mantém a ordem em que os itens foram colocados
         Map<String, Long> dados = new LinkedHashMap<>();
@@ -56,14 +62,5 @@ public class DashboardService {
         dados.put("estoqueBaixo", epiRepository.countByQuantidadeDisponivelLessThanEqual(2));
 
         return dados;
-    }
-
-    // Mesmo controle de acesso das Aulas 5 e 6
-    private void verificarAdmin(Long adminId) {
-        Funcionario usuario = funcionarioRepository.findById(adminId).orElseThrow(() -> new SecurityException("Usuário não encontrado"));
-
-        if (!"ADMIN".equals(usuario.getPerfil())){
-            throw new SecurityException("Apenas administradores podem ver o painel");
-        }
     }
 }

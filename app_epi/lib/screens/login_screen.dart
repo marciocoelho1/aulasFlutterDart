@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/auth_service.dart';
 import 'main_screen.dart';
 
@@ -16,6 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool carregando = false;
 
   Future<void> fazerLogin() async {
+    if (carregando) return;
+
     try {
       setState(() {
         carregando = true;
@@ -27,22 +31,18 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => MainScreen(
-            usuario: usuario,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => MainScreen(usuario: usuario)),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-        ),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensagemDeErro(e))));
     } finally {
-      setState(() {
-        carregando = false;
-      });
+      if (mounted) {
+        setState(() {
+          carregando = false;
+        });
+      }
     }
   }
 
@@ -61,6 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 30),
             TextField(
               controller: matriculaController,
+              textInputAction: TextInputAction.done,
+              // Enter na matrícula também aciona o botão "Entrar".
+              onSubmitted: (_) => fazerLogin(),
               decoration: const InputDecoration(
                 labelText: 'Matrícula',
                 border: OutlineInputBorder(),
@@ -70,6 +73,9 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: senhaController,
               obscureText: true,
+              textInputAction: TextInputAction.done,
+              // Enter no campo de senha aciona o botão "Entrar".
+              onSubmitted: (_) => fazerLogin(),
               decoration: const InputDecoration(
                 labelText: 'Senha',
                 border: OutlineInputBorder(),

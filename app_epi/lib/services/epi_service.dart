@@ -1,4 +1,5 @@
 import 'dart:convert'; // Trabalha com JSON
+
 import 'package:http/http.dart' as http; // Faz requisições HTTP
 
 import '../models/epi.dart';
@@ -8,7 +9,9 @@ class EpiService {
   // Busca a lista de EPIs na API
   Future<List<Epi>> buscarEpis() async {
     // Faz uma requisição GET para o endpoint /epis
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/epis'));
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/epis'))
+        .timeout(ApiConfig.timeout);
 
     // Verifica se a requisição foi bem-sucedida
     if (response.statusCode == 200) {

@@ -11,13 +11,13 @@ class Usuario {
     required this.setor,
     required this.perfil,
   });
-  factory Usuario.fromJson(
-    Map<String, dynamic> json){
-      return Usuario(id: json['id'],
+  factory Usuario.fromJson(Map<String, dynamic> json) {
+    return Usuario(
+      id: json['id'],
       matricula: json['matricula'],
       nome: json['nome'],
       setor: json['setor'],
       perfil: json['perfil'],
-      );
-    }
+    );
+  }
 }

@@ -2,20 +2,74 @@ import 'package:flutter/material.dart';
 
 import '../models/epi.dart';
 import '../models/usuario.dart';
-import '../services/epi_service.dart';
 import '../services/api_config.dart';
+import '../services/api_erro.dart';
+import '../services/epi_service.dart';
 import 'epi_detalhe_screen.dart';
 
-class EpiScreen extends StatelessWidget {
-  final Usuario usuario;
+/// Filtro aplicado à lista. Usado pelos cards do painel para abrir a
+/// listagem já filtrada (CA vencido / estoque baixo).
+enum FiltroEpi { todos, caVencido, estoqueBaixo }
 
-  const EpiScreen({super.key, required this.usuario});
+class EpiScreen extends StatefulWidget {
+  final Usuario usuario;
+  final FiltroEpi filtro;
+
+  const EpiScreen({
+    super.key,
+    required this.usuario,
+    this.filtro = FiltroEpi.todos,
+  });
+
+  @override
+  State<EpiScreen> createState() => _EpiScreenState();
+}
+
+class _EpiScreenState extends State<EpiScreen> {
+  // O future é criado uma única vez, quando o State é criado, para não
+  // refazer a requisição a cada rebuild da tela.
+  late final Future<List<Epi>> _futuroEpis = EpiService().buscarEpis();
+
+  String get _titulo {
+    switch (widget.filtro) {
+      case FiltroEpi.caVencido:
+        return 'EPIs com CA vencido';
+      case FiltroEpi.estoqueBaixo:
+        return 'EPIs com estoque baixo';
+      case FiltroEpi.todos:
+        return 'Lista de EPIs';
+    }
+  }
+
+  bool _mostrar(Epi epi) {
+    switch (widget.filtro) {
+      case FiltroEpi.caVencido:
+        return epi.isCaVencido;
+      case FiltroEpi.estoqueBaixo:
+        return epi.quantidadeDisponivel <= 2;
+      case FiltroEpi.todos:
+        return true;
+    }
+  }
+
+  Widget _semImagem(bool vencido) {
+    return Container(
+      width: 55,
+      height: 55,
+      color: vencido ? Colors.red.shade100 : Colors.blue.shade50,
+      child: Icon(
+        Icons.health_and_safety,
+        color: vencido ? Colors.red : Colors.blue,
+        size: 30,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lista de EPIs'),
+        title: Text(_titulo),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
@@ -29,27 +83,34 @@ class EpiScreen extends StatelessWidget {
         ],
       ),
       body: FutureBuilder<List<Epi>>(
-        future: EpiService().buscarEpis(),
+        future: _futuroEpis,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Erro: ${snapshot.error}'));
+            return Center(
+              child: Text('Erro: ${mensagemDeErro(snapshot.error)}'),
+            );
           }
 
-          final epis = snapshot.data ?? [];
+          final epis = (snapshot.data ?? []).where(_mostrar).toList();
 
           if (epis.isEmpty) {
-            return const Center(child: Text('Nenhum EPI cadastrado.'));
+            return Center(
+              child: Text(
+                widget.filtro == FiltroEpi.todos
+                    ? 'Nenhum EPI cadastrado.'
+                    : 'Nenhum EPI nesta situação.',
+              ),
+            );
           }
 
           return ListView.builder(
             itemCount: epis.length,
             itemBuilder: (context, index) {
               final epi = epis[index];
-              final urlImagem = '${ApiConfig.baseUrl}${epi.imagemUrl}';
               final vencido = epi.isCaVencido;
 
               return Card(
@@ -70,32 +131,23 @@ class EpiScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
-                            EpiDetalheScreen(epi: epi, usuario: usuario),
+                            EpiDetalheScreen(epi: epi, usuario: widget.usuario),
                       ),
                     );
                   },
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      urlImagem,
-                      width: 55,
-                      height: 55,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 55,
-                          height: 55,
-                          color: vencido
-                              ? Colors.red.shade100
-                              : Colors.blue.shade50,
-                          child: Icon(
-                            Icons.health_and_safety,
-                            color: vencido ? Colors.red : Colors.blue,
-                            size: 30,
+                    child: epi.imagemUrl.isEmpty
+                        ? _semImagem(vencido)
+                        : Image.network(
+                            '${ApiConfig.baseUrl}${epi.imagemUrl}',
+                            width: 55,
+                            height: 55,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _semImagem(vencido);
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                   title: Text(
                     epi.nome,
@@ -119,7 +171,7 @@ class EpiScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 4.0),
                           child: Text(
-                            '⚠️ CA VENCIDO (${epi.validadeCa})',
+                            '⚠️ CA VENCIDO (${epi.validadeFormatada})',
                             style: const TextStyle(
                               color: Colors.red,
                               fontWeight: FontWeight.bold,

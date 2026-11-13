@@ -20,7 +20,7 @@ class Dashboard {
   });
 
   // As chaves são as mesmas do Map montado no DashboardService (Java)
-  factory Dashboard.fromJson(Map<String, dynamic> json){
+  factory Dashboard.fromJson(Map<String, dynamic> json) {
     return Dashboard(
       episCadastrados: json['episCadastrados'],
       episEmprestados: json['episEmprestados'],

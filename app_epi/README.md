@@ -35,3 +35,7 @@ Aplicativo Flutter integrado à API REST `api_epi` para consulta, solicitação 
    ```bash
    flutter run
    ```
+
+> A API precisa estar rodando. O app usa `localhost:8080` no desktop/web e
+> `10.0.2.2:8080` no emulador Android. Para outro endereço, use
+> `flutter run --dart-define=API_BASE_URL=http://IP:8080`.

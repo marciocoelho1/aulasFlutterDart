@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../models/treinamento.dart';
 import '../models/treinamento_realizado.dart';
 import 'api_config.dart';
@@ -7,9 +9,9 @@ import 'api_config.dart';
 class TreinamentoService {
   // GET /treinamentos
   Future<List<Treinamento>> buscarTreinamentos() async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/treinamentos'),
-    );
+    final response = await http
+        .get(Uri.parse('${ApiConfig.baseUrl}/treinamentos'))
+        .timeout(ApiConfig.timeout);
 
     if (response.statusCode == 200) {
       List<dynamic> lista = json.decode(utf8.decode(response.bodyBytes));
@@ -21,32 +23,31 @@ class TreinamentoService {
 
   // GET /treinamentos/realizados/funcionario/3
   Future<List<TreinamentoRealizado>> buscarRealizados(int funcionarioId) async {
-    final response = await http.get(
-      Uri.parse(
-        '${ApiConfig.baseUrl}/treinamentos/realizados/funcionario/$funcionarioId',
-      ),
-    );
+    final response = await http
+        .get(
+          Uri.parse(
+            '${ApiConfig.baseUrl}/treinamentos/realizados/funcionario/$funcionarioId',
+          ),
+        )
+        .timeout(ApiConfig.timeout);
 
     if (response.statusCode == 200) {
       List<dynamic> lista = json.decode(utf8.decode(response.bodyBytes));
-      return lista
-          .map((item) => TreinamentoRealizado.fromJson(item))
-          .toList();
+      return lista.map((item) => TreinamentoRealizado.fromJson(item)).toList();
     }
 
     throw Exception(utf8.decode(response.bodyBytes));
   }
 
   // POST /treinamentos?adminId=1
-  Future<Treinamento> cadastrar(
-    Treinamento treinamento,
-    int adminId,
-  ) async {
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/treinamentos?adminId=$adminId'),
-      headers: {'Content-Type': 'application/json; charset=utf-8'},
-      body: json.encode(treinamento.toJson()),
-    );
+  Future<Treinamento> cadastrar(Treinamento treinamento, int adminId) async {
+    final response = await http
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/treinamentos?adminId=$adminId'),
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+          body: json.encode(treinamento.toJson()),
+        )
+        .timeout(ApiConfig.timeout);
 
     final corpo = utf8.decode(response.bodyBytes);
 
@@ -61,12 +62,14 @@ class TreinamentoService {
 
   // POST /treinamentos/2/concluir?funcionarioId=3
   Future<void> concluir(int treinamentoId, int funcionarioId) async {
-    final response = await http.post(
-      Uri.parse(
-        '${ApiConfig.baseUrl}/treinamentos/$treinamentoId/concluir'
-        '?funcionarioId=$funcionarioId',
-      ),
-    );
+    final response = await http
+        .post(
+          Uri.parse(
+            '${ApiConfig.baseUrl}/treinamentos/$treinamentoId/concluir'
+            '?funcionarioId=$funcionarioId',
+          ),
+        )
+        .timeout(ApiConfig.timeout);
 
     // 201 = registro de conclusão criado
     if (response.statusCode == 201) {

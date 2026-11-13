@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../models/dashboard.dart';
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/indicador_card.dart';
 import 'epi_screen.dart';
@@ -12,10 +14,7 @@ import 'solicitacoes_screen.dart';
 class DashboardScreen extends StatefulWidget {
   final Usuario usuario;
 
-  const DashboardScreen({
-    super.key,
-    required this.usuario,
-  });
+  const DashboardScreen({super.key, required this.usuario});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -32,19 +31,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> recarregar() async {
+    final futuro = DashboardService().buscar(widget.usuario.id);
     setState(() {
-      futuroDados = DashboardService().buscar(widget.usuario.id);
+      futuroDados = futuro;
       atualizadoEm = DateTime.now();
     });
-    await futuroDados; // o RefreshIndicator espera terminar
+    try {
+      await futuro; // o RefreshIndicator espera terminar
+    } catch (_) {
+      // O FutureBuilder abaixo já exibe a mensagem de erro.
+    }
   }
 
   // Abre outra tela e, ao voltar, atualiza os números
   void abrir(Widget tela) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => tela),
-    ).then((_) => recarregar());
+    Navigator.push(context, MaterialPageRoute(builder: (_) => tela)).then((_) {
+      if (mounted) recarregar();
+    });
   }
 
   String doisDigitos(int n) => n.toString().padLeft(2, '0');
@@ -64,11 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
-            ),
-          );
+          return Center(child: Text(mensagemDeErro(snapshot.error)));
         }
 
         final d = snapshot.data!;
@@ -103,8 +102,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.warning_amber_rounded,
-                          color: Colors.red.shade700),
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.red.shade700,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -153,7 +154,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     valor: d.caVencidos,
                     icone: Icons.gpp_bad,
                     cor: Colors.red,
-                    onTap: () => abrir(EpiScreen(usuario: widget.usuario)),
+                    onTap: () => abrir(
+                      EpiScreen(
+                        usuario: widget.usuario,
+                        filtro: FiltroEpi.caVencido,
+                      ),
+                    ),
                   ),
                   IndicadorCard(
                     titulo: 'Solicitações pendentes',
@@ -174,14 +180,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     valor: d.funcionariosCadastrados,
                     icone: Icons.people,
                     cor: Colors.teal,
-                    onTap: () => abrir(const FuncionarioScreen()),
+                    onTap: () =>
+                        abrir(FuncionarioScreen(usuario: widget.usuario)),
                   ),
                   IndicadorCard(
                     titulo: 'Estoque baixo',
                     valor: d.estoqueBaixo,
                     icone: Icons.production_quantity_limits,
                     cor: Colors.deepOrange,
-                    onTap: () => abrir(EpiScreen(usuario: widget.usuario)),
+                    onTap: () => abrir(
+                      EpiScreen(
+                        usuario: widget.usuario,
+                        filtro: FiltroEpi.estoqueBaixo,
+                      ),
+                    ),
                   ),
                 ],
               ),

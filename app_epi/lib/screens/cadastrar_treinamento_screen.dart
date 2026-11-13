@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/treinamento.dart';
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/treinamento_service.dart';
 
 /// Tela exclusiva do administrador: cria um treinamento.
@@ -66,8 +67,10 @@ class _CadastrarTreinamentoScreenState
     );
 
     try {
-      final criado = await TreinamentoService()
-          .cadastrar(treinamento, widget.usuario.id);
+      final criado = await TreinamentoService().cadastrar(
+        treinamento,
+        widget.usuario.id,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,10 +83,7 @@ class _CadastrarTreinamentoScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(mensagemDeErro(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -142,7 +142,8 @@ class _CadastrarTreinamentoScreenState
               decoration: const InputDecoration(
                 labelText: 'Nome do arquivo',
                 hintText: 'nr06.pdf',
-                helperText: 'Arquivo já existente em static/arquivos do backend',
+                helperText:
+                    'Arquivo já existente em static/arquivos do backend',
                 prefixIcon: Icon(Icons.picture_as_pdf),
                 border: OutlineInputBorder(),
               ),

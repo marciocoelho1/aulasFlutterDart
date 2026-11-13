@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../models/treinamento.dart';
 import '../models/treinamento_realizado.dart';
 import '../models/usuario.dart';
 import '../services/api_config.dart';
+import '../services/api_erro.dart';
 import '../services/treinamento_service.dart';
 
 class TreinamentosScreen extends StatefulWidget {
   final Usuario usuario;
 
-  const TreinamentosScreen({
-    super.key,
-    required this.usuario,
-  });
+  const TreinamentosScreen({super.key, required this.usuario});
 
   @override
   State<TreinamentosScreen> createState() => _TreinamentosScreenState();
@@ -37,13 +36,15 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
   Future<void> carregarDados() async {
     final service = TreinamentoService();
     treinamentos = await service.buscarTreinamentos();
-    final realizados =
-        await service.buscarRealizados(widget.usuario.id);
+    final realizados = await service.buscarRealizados(widget.usuario.id);
 
     concluidos = {};
     for (final r in realizados) {
-      // Se o mesmo treinamento foi refeito, fica o registro mais recente
-      concluidos[r.treinamentoId] = r;
+      // Se o mesmo treinamento foi refeito, fica o registro mais recente.
+      final atual = concluidos[r.treinamentoId];
+      if (atual == null || r.dataConclusao.isAfter(atual.dataConclusao)) {
+        concluidos[r.treinamentoId] = r;
+      }
     }
   }
 
@@ -55,11 +56,22 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
 
   // Abre o PDF do treinamento no navegador / leitor do celular
   Future<void> abrirMaterial(Treinamento t) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}${t.arquivoUrl}');
-    final abriu =
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+    final caminho = t.arquivoUrl;
+    if (caminho == null || caminho.isEmpty) return;
 
-    if (!abriu && mounted) {
+    try {
+      final abriu = await launchUrl(
+        Uri.parse('${ApiConfig.baseUrl}$caminho'),
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!abriu && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o material')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível abrir o material')),
       );
@@ -112,10 +124,7 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(mensagemDeErro(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -141,12 +150,12 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Erro: ${snapshot.error}'));
+            return Center(
+              child: Text('Erro: ${mensagemDeErro(snapshot.error)}'),
+            );
           }
           if (treinamentos.isEmpty) {
-            return const Center(
-              child: Text('Nenhum treinamento disponível'),
-            );
+            return const Center(child: Text('Nenhum treinamento disponível'));
           }
 
           final total = treinamentos.length;
@@ -171,7 +180,9 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
                       ),
                       const SizedBox(height: 10),
                       LinearProgressIndicator(
-                        value: feitos / total,
+                        value: total == 0
+                            ? 0
+                            : (feitos / total).clamp(0.0, 1.0),
                         minHeight: 8,
                         color: Colors.green,
                         backgroundColor: Colors.grey.shade300,
@@ -209,13 +220,13 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
                                   vencido
                                       ? Icons.error
                                       : (concluido
-                                          ? Icons.check_circle
-                                          : Icons.school),
+                                            ? Icons.check_circle
+                                            : Icons.school),
                                   color: vencido
                                       ? Colors.red
                                       : (concluido
-                                          ? Colors.green
-                                          : Colors.blue),
+                                            ? Colors.green
+                                            : Colors.blue),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -253,10 +264,14 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
                                     icon: const Icon(Icons.picture_as_pdf),
                                     label: const Text('Material'),
                                   ),
-                                if (registro != null && !vencido && !podeRefazer)
+                                if (registro != null &&
+                                    !vencido &&
+                                    !podeRefazer)
                                   Chip(
-                                    avatar: const Icon(Icons.check,
-                                        color: Colors.green),
+                                    avatar: const Icon(
+                                      Icons.check,
+                                      color: Colors.green,
+                                    ),
                                     label: Text(
                                       'Concluído em ${registro.dataFormatada}',
                                     ),
@@ -264,8 +279,10 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
                                   )
                                 else if (registro != null && vencido)
                                   Chip(
-                                    avatar: const Icon(Icons.error,
-                                        color: Colors.red),
+                                    avatar: const Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                    ),
                                     label: const Text('Vencido – refazer'),
                                     backgroundColor: Colors.red.shade50,
                                     labelStyle: const TextStyle(
@@ -275,8 +292,10 @@ class _TreinamentosScreenState extends State<TreinamentosScreen> {
                                   )
                                 else if (registro != null)
                                   Chip(
-                                    avatar: const Icon(Icons.hourglass_bottom,
-                                        color: Colors.orange),
+                                    avatar: const Icon(
+                                      Icons.hourglass_bottom,
+                                      color: Colors.orange,
+                                    ),
                                     label: Text(registro.situacao),
                                     backgroundColor: Colors.orange.shade50,
                                   ),

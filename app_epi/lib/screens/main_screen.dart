@@ -19,6 +19,9 @@ class MainScreen extends StatelessWidget {
   // trim + toLowerCase evita quebrar com "admin", "ADMIN" ou "Admin ".
   bool get _isAdmin => usuario.perfil.trim().toLowerCase() == 'admin';
 
+  bool get _isFuncionario =>
+      usuario.perfil.trim().toLowerCase() == 'funcionario';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,24 +77,27 @@ class MainScreen extends StatelessWidget {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.people),
-              title: const Text('Funcionários'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FuncionarioScreen(),
-                  ),
-                );
-              },
-            ),
+            // Aula 5: a lista de funcionários é exclusiva do administrador.
+            if (_isAdmin)
+              ListTile(
+                leading: const Icon(Icons.people),
+                title: const Text('Funcionários'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FuncionarioScreen(usuario: usuario),
+                    ),
+                  );
+                },
+              ),
             //  Aula 6: treinamentos (todos os perfis)
             ListTile(
               leading: const Icon(Icons.school),
               title: const Text('Treinamentos'),
               onTap: () {
+                Navigator.pop(context); // fecha o drawer
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -132,9 +138,9 @@ class MainScreen extends StatelessWidget {
       ),
       // Aula 7: ADMIN vê o painel; FUNCIONARIO vê os próprios indicadores;
       // os demais perfis continuam com a mensagem de boas-vindas.
-      body: usuario.perfil == 'ADMIN'
+      body: _isAdmin
           ? DashboardScreen(usuario: usuario)
-          : usuario.perfil == 'FUNCIONARIO'
+          : _isFuncionario
           ? PainelFuncionario(usuario: usuario)
           : Center(
               child: Text(

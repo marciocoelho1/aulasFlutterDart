@@ -14,6 +14,9 @@ public interface EmprestimoRepository extends JpaRepository<Emprestimo, Long> {
 
     long countByStatus(String status);
 
+    // O funcionário tem algum empréstimo/solicitação? (bloqueia exclusão)
+    boolean existsByFuncionarioId(Long funcionarioId);
+
     // NOVO na Aula 7: todos os empréstimos, do mais recente para o mais antigo
     List<Emprestimo> findAllByOrderByIdDesc();
 }

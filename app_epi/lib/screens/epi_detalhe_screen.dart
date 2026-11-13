@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
+
 import '../models/epi.dart';
 import '../models/usuario.dart';
 import '../services/api_config.dart';
+import '../services/api_erro.dart';
 import '../services/emprestimo_service.dart';
 
 class EpiDetalheScreen extends StatefulWidget {
   final Epi epi; // EPI escolhido na lista
   final Usuario usuario; // funcionário logado
 
-  const EpiDetalheScreen({
-    super.key,
-    required this.epi,
-    required this.usuario,
-  });
+  const EpiDetalheScreen({super.key, required this.epi, required this.usuario});
 
   @override
   State<EpiDetalheScreen> createState() => _EpiDetalheScreenState();
@@ -38,9 +36,7 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Solicitação'),
-        content: Text(
-          'Confirma a solicitação de "${widget.epi.nome}"?',
-        ),
+        content: Text('Confirma a solicitação de "${widget.epi.nome}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -59,6 +55,8 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
     );
 
     if (confirmar != true) return;
+
+    if (!mounted) return;
 
     setState(() {
       carregando = true;
@@ -87,12 +85,7 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
 
       // 4. Erro: mostra a mensagem que veio da API
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(mensagemDeErro(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -126,22 +119,16 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
               // Foto do EPI
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  '${ApiConfig.baseUrl}${epi.imagemUrl}',
-                  height: 200,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 200,
-                      color: Colors.blue.shade50,
-                      child: const Icon(
-                        Icons.health_and_safety,
-                        size: 80,
-                        color: Colors.blue,
+                child: epi.imagemUrl.isEmpty
+                    ? _imagemIndisponivel()
+                    : Image.network(
+                        '${ApiConfig.baseUrl}${epi.imagemUrl}',
+                        height: 200,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _imagemIndisponivel();
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
               const SizedBox(height: 20),
 
@@ -156,10 +143,7 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
               const SizedBox(height: 6),
               Text(
                 epi.categoria,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const Divider(height: 30),
 
@@ -251,13 +235,17 @@ class _EpiDetalheScreenState extends State<EpiDetalheScreen> {
     );
   }
 
+  // Imagem usada quando o EPI não tem foto ou a foto não carrega.
+  Widget _imagemIndisponivel() {
+    return Container(
+      height: 200,
+      color: Colors.blue.shade50,
+      child: const Icon(Icons.health_and_safety, size: 80, color: Colors.blue),
+    );
+  }
+
   // Monta uma linha "ícone + rótulo + valor"
-  Widget linhaInfo(
-    IconData icone,
-    String rotulo,
-    String valor, {
-    Color? cor,
-  }) {
+  Widget linhaInfo(IconData icone, String rotulo, String valor, {Color? cor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(

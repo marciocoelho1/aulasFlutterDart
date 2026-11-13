@@ -76,7 +76,9 @@ class TreinamentoRealizado {
     if (vencido) {
       return 'Vencido – refazer';
     }
-    if (diasParaVencer != null && diasParaVencer! >= 0 && diasParaVencer! <= 30) {
+    if (diasParaVencer != null &&
+        diasParaVencer! >= 0 &&
+        diasParaVencer! <= 30) {
       return 'Vence em $vencimentoFormatado';
     }
     return 'Válido até $vencimentoFormatado';

@@ -3,6 +3,7 @@ package com.senac.api_epi.dto;
 import com.senac.api_epi.entities.TreinamentoRealizado;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Saída do GET /treinamentos/realizados/funcionario/{id}.
@@ -22,7 +23,7 @@ public record TreinamentoRealizadoDTO(
         LocalDate dataVencimento,
         boolean vencido,
         boolean podeRefazer,
-        long diasParaVencer
+        Long diasParaVencer
 ) {
 
     public static TreinamentoRealizadoDTO from(TreinamentoRealizado registro) {
@@ -36,9 +37,11 @@ public record TreinamentoRealizadoDTO(
                 : conclusao.plusMonths(meses);
 
         boolean vencido = vencimento != null && vencimento.isBefore(LocalDate.now());
-        long dias = vencimento == null
-                ? Long.MAX_VALUE
-                : java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), vencimento);
+
+        // null = não vence (evita enviar Long.MAX_VALUE para o app).
+        Long dias = vencimento == null
+                ? null
+                : ChronoUnit.DAYS.between(LocalDate.now(), vencimento);
 
         return new TreinamentoRealizadoDTO(
                 registro.getId(),
@@ -51,7 +54,7 @@ public record TreinamentoRealizadoDTO(
                 vencimento,
                 vencido,
                 // Pode refazer quando venceu ou já está no mês de vencimento
-                vencido || (vencimento != null && dias <= 30),
+                vencido || (dias != null && dias <= 30),
                 dias
         );
     }

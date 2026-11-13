@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/funcionario.dart';
 import '../models/treinamento_realizado.dart';
 import '../services/api_config.dart';
+import '../services/api_erro.dart';
 import '../services/treinamento_service.dart';
 
 /// Item 2: ao tocar em um funcionário, mostra o histórico de treinamentos.
@@ -11,10 +12,7 @@ import '../services/treinamento_service.dart';
 class TreinamentosDoFuncionarioScreen extends StatefulWidget {
   final Funcionario funcionario;
 
-  const TreinamentosDoFuncionarioScreen({
-    super.key,
-    required this.funcionario,
-  });
+  const TreinamentosDoFuncionarioScreen({super.key, required this.funcionario});
 
   @override
   State<TreinamentosDoFuncionarioScreen> createState() =>
@@ -28,17 +26,23 @@ class _TreinamentosDoFuncionarioScreenState
   @override
   void initState() {
     super.initState();
-    carregamento =
-        TreinamentoService().buscarRealizados(widget.funcionario.id);
+    carregamento = TreinamentoService().buscarRealizados(widget.funcionario.id);
   }
 
   Future<void> abrirMaterial(String? arquivoUrl) async {
     if (arquivoUrl == null || arquivoUrl.isEmpty) return;
 
     final url = Uri.parse('${ApiConfig.baseUrl}$arquivoUrl');
-    final abriu = await launchUrl(url, mode: LaunchMode.externalApplication);
+    try {
+      final abriu = await launchUrl(url, mode: LaunchMode.externalApplication);
 
-    if (!abriu && mounted) {
+      if (!abriu && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível abrir o material')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível abrir o material')),
       );
@@ -99,7 +103,7 @@ class _TreinamentosDoFuncionarioScreenState
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'Erro: ${snapshot.error.toString().replaceFirst('Exception: ', '')}',
+                  'Erro: ${mensagemDeErro(snapshot.error)}',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -184,9 +188,15 @@ class _TreinamentosDoFuncionarioScreenState
                                 runSpacing: 8,
                                 children: [
                                   Chip(
-                                    avatar: Icon(_icone(r), color: cor, size: 18),
+                                    avatar: Icon(
+                                      _icone(r),
+                                      color: cor,
+                                      size: 18,
+                                    ),
                                     label: Text(r.situacao),
-                                    backgroundColor: cor.withValues(alpha: 0.12),
+                                    backgroundColor: cor.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     labelStyle: TextStyle(
                                       color: _corTexto(r),
                                       fontWeight: FontWeight.bold,
@@ -194,7 +204,8 @@ class _TreinamentosDoFuncionarioScreenState
                                   ),
                                   if (r.arquivoUrl != null)
                                     OutlinedButton.icon(
-                                      onPressed: () => abrirMaterial(r.arquivoUrl),
+                                      onPressed: () =>
+                                          abrirMaterial(r.arquivoUrl),
                                       icon: const Icon(Icons.picture_as_pdf),
                                       label: const Text('Material'),
                                     ),

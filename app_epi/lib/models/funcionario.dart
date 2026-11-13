@@ -11,12 +11,12 @@ class Funcionario {
     required this.setor,
   });
 
-  factory Funcionario.fromJson(Map<String, dynamic> json){
+  factory Funcionario.fromJson(Map<String, dynamic> json) {
     return Funcionario(
       id: json['id'],
       matricula: json['matricula'],
       nome: json['nome'],
       setor: json['setor'],
-      );
+    );
   }
 }

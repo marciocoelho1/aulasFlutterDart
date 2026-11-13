@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
+
 import '../models/emprestimo.dart';
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/emprestimo_service.dart';
 
-class MeusEmprestimosScreen extends StatelessWidget {
+class MeusEmprestimosScreen extends StatefulWidget {
   final Usuario usuario;
 
-  const MeusEmprestimosScreen({
-    super.key,
-    required this.usuario,
-  });
+  const MeusEmprestimosScreen({super.key, required this.usuario});
+
+  @override
+  State<MeusEmprestimosScreen> createState() => _MeusEmprestimosScreenState();
+}
+
+class _MeusEmprestimosScreenState extends State<MeusEmprestimosScreen> {
+  // O future é criado uma única vez, no initState, para não refazer a
+  // requisição a cada rebuild da tela.
+  late final Future<List<Emprestimo>> _futuroEmprestimos = EmprestimoService()
+      .buscarPorFuncionario(widget.usuario.id);
 
   // Define a cor de acordo com o status (Exercício 3)
   Color _obterCorStatus(String status) {
@@ -41,14 +50,16 @@ class MeusEmprestimosScreen extends StatelessWidget {
         ],
       ),
       body: FutureBuilder<List<Emprestimo>>(
-        future: EmprestimoService().buscarPorFuncionario(usuario.id),
+        future: _futuroEmprestimos,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Erro: ${snapshot.error}'));
+            return Center(
+              child: Text('Erro: ${mensagemDeErro(snapshot.error)}'),
+            );
           }
 
           final emprestimos = snapshot.data ?? [];

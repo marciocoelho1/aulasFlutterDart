@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/emprestimo.dart';
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/emprestimo_service.dart';
 
 // Tela do painel: lista todas as solicitações de EPI.
@@ -10,10 +11,7 @@ import '../services/emprestimo_service.dart';
 class SolicitacoesScreen extends StatefulWidget {
   final Usuario usuario;
 
-  const SolicitacoesScreen({
-    super.key,
-    required this.usuario,
-  });
+  const SolicitacoesScreen({super.key, required this.usuario});
 
   @override
   State<SolicitacoesScreen> createState() => _SolicitacoesScreenState();
@@ -30,10 +28,15 @@ class _SolicitacoesScreenState extends State<SolicitacoesScreen> {
   }
 
   Future<void> recarregar() async {
+    final futuro = EmprestimoService().buscarTodos();
     setState(() {
-      carregamento = EmprestimoService().buscarTodos();
+      carregamento = futuro;
     });
-    await carregamento;
+    try {
+      await futuro;
+    } catch (_) {
+      // O FutureBuilder abaixo já exibe a mensagem de erro.
+    }
   }
 
   // Mesmas cores usadas em Meus Empréstimos
@@ -61,9 +64,8 @@ class _SolicitacoesScreenState extends State<SolicitacoesScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensagemDeErro(e))));
     } finally {
       if (mounted) setState(() => processandoId = null);
     }
@@ -140,7 +142,7 @@ class _SolicitacoesScreenState extends State<SolicitacoesScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'Erro: ${snapshot.error.toString().replaceFirst('Exception: ', '')}',
+                  'Erro: ${mensagemDeErro(snapshot.error)}',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -176,8 +178,9 @@ class _SolicitacoesScreenState extends State<SolicitacoesScreen> {
                         Row(
                           children: [
                             CircleAvatar(
-                              backgroundColor:
-                                  corStatus.withValues(alpha: 0.15),
+                              backgroundColor: corStatus.withValues(
+                                alpha: 0.15,
+                              ),
                               child: Icon(Icons.assignment, color: corStatus),
                             ),
                             const SizedBox(width: 12),

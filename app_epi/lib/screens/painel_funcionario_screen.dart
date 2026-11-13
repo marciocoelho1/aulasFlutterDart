@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/usuario.dart';
+import '../services/api_erro.dart';
 import '../services/emprestimo_service.dart';
 import '../services/treinamento_service.dart';
 import '../widgets/indicador_card.dart';
@@ -13,10 +14,7 @@ import 'treinamentos_screen.dart';
 class PainelFuncionario extends StatefulWidget {
   final Usuario usuario;
 
-  const PainelFuncionario({
-    super.key,
-    required this.usuario,
-  });
+  const PainelFuncionario({super.key, required this.usuario});
 
   @override
   State<PainelFuncionario> createState() => _PainelFuncionarioState();
@@ -46,25 +44,35 @@ class _PainelFuncionarioState extends State<PainelFuncionario> {
     );
 
     final emUso = emprestimos.where((e) => e.status == 'EMPRESTADO').length;
-    final pendentes = treinamentos.length - realizados.length;
 
-    return [emUso, pendentes < 0 ? 0 : pendentes];
+    // Um treinamento pode ter mais de um registro (reciclagem), então
+    // contamos apenas IDs distintos para não ficar negativo.
+    final concluidos = realizados.map((r) => r.treinamentoId).toSet().length;
+    final pendentes = (treinamentos.length - concluidos)
+        .clamp(0, treinamentos.length)
+        .toInt();
+
+    return [emUso, pendentes];
   }
 
   Future<void> recarregar() async {
+    final futuro = carregarContadores();
     setState(() {
-      futuroContadores = carregarContadores();
+      futuroContadores = futuro;
       atualizadoEm = DateTime.now();
     });
-    await futuroContadores;
+    try {
+      await futuro;
+    } catch (_) {
+      // O FutureBuilder abaixo já exibe a mensagem de erro.
+    }
   }
 
   // Abre outra tela e, ao voltar, atualiza os números
   void abrir(Widget tela) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => tela),
-    ).then((_) => recarregar());
+    Navigator.push(context, MaterialPageRoute(builder: (_) => tela)).then((_) {
+      if (mounted) recarregar();
+    });
   }
 
   String doisDigitos(int n) => n.toString().padLeft(2, '0');
@@ -78,11 +86,7 @@ class _PainelFuncionarioState extends State<PainelFuncionario> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
-            ),
-          );
+          return Center(child: Text(mensagemDeErro(snapshot.error)));
         }
 
         final contadores = snapshot.data!;
